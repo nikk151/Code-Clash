@@ -58,48 +58,56 @@ async function registerController(req, res) {
 
 
 async function loginUser(req, res) {
+    try {
+        const { username, email, password } = req.body;
 
-    const {username, email, password} = req.body;
-
-    const isUserExist = await userModel.findOne({
-        $or : [
-            {username},
-            {email}
-        ]
-    })
-
-    if (!isUserExist){
-        return res.status(400).json({
-            message: "User Not Found"
-        })
-    }
-
-    const isPasswordMatched = await bcrypt.compare(password, isUserExist.password)
-
-    if (!isPasswordMatched){
-        return res.status(400).json({
-            message: "Invalid Credentials"
-        })
-    }
-
-    const token = jwt.sign({id : isUserExist._id}, process.env.JWT_SECRET, {
-        expiresIn: "7d"
-    })
-
-    res.cookie("token", token, {httpOnly: true})
-
-    return res.status(200).json({
-        message: "User Logged In Successfully",
-        user: {
-            id: isUserExist._id,
-            username: isUserExist.username,
-            email: isUserExist.email,
+        if (!password || (!username && !email)) {
+            return res.status(400).json({
+                message: "Email/username and password are required"
+            });
         }
-    })
 
+        const isUserExist = await userModel.findOne({
+            $or: [
+                { username },
+                { email }
+            ]
+        }).select('+password');  // explicitly fetch password since select:false in schema
 
+        if (!isUserExist) {
+            return res.status(400).json({
+                message: "User Not Found"
+            });
+        }
 
+        const isPasswordMatched = await bcrypt.compare(password, isUserExist.password);
 
+        if (!isPasswordMatched) {
+            return res.status(400).json({
+                message: "Invalid Credentials"
+            });
+        }
+
+        const token = jwt.sign({ id: isUserExist._id }, process.env.JWT_SECRET, {
+            expiresIn: "7d"
+        });
+
+        res.cookie("token", token, { httpOnly: true });
+
+        return res.status(200).json({
+            message: "User Logged In Successfully",
+            user: {
+                id: isUserExist._id,
+                username: isUserExist.username,
+                email: isUserExist.email,
+            }
+        });
+    } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
 }
 
 

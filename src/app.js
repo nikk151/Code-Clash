@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express')
 const userModel = require('./models/user.model.js')
 const authRoutes = require('./routes/auth.routes.js')
+const problemRoutes = require('./routes/problems.routes.js')
 const cookieParser = require('cookie-parser');
 
 
@@ -11,7 +12,8 @@ app.use(express.json())
 app.use(cookieParser());
 
 
-app.use("/auth", authRoutes)
+app.use("/api/auth", authRoutes)
+app.use("/api/problems", problemRoutes)
 
 
 

@@ -1,24 +1,35 @@
-const mongoose = require('mongoose')
-
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    username : {
-        type : String,
-        required : true,
-        unique : true
-    },
+  username: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true,
+    index: true // Index for fast "Search Friend" queries
+  },
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true 
+  },
+  password: { 
+    type: String, 
+    required: true,
+    select: false // Never return password by default
+  },
+  // Game Stats
+  eloRating: { 
+    type: Number, 
+    default: 1200, // Standard starting rating
+    index: true // CRITICAL: We need to sort users by rating fast for matchmaking
+  },
+  totalMatches: { type: Number, default: 0 },
+  wins: { type: Number, default: 0 },
+  losses: { type: Number, default: 0 },
 
-    email : {
-        type : String,
-        required : true,
-        unique : true
-    },
+  // Optional: For your GitHub-style profile
+  solvedProblems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Problem' }]
+}, { timestamps: true });
 
-    password : {
-        type : String,
-        required: true
-    }
-})
-
-
-module.exports = mongoose.model('User', userSchema)
+module.exports = mongoose.model('User', userSchema);
