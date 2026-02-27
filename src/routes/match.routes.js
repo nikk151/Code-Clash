@@ -6,6 +6,7 @@ const router = express.Router()
 
 
 router.post('/create-match', authMiddleware.isLoggedIn, matchController.createMatch)
+router.post('/join-match/:matchId', authMiddleware.isLoggedIn, matchController.joinMatch)
 
 
 

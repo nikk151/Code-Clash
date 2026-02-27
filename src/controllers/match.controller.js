@@ -52,7 +52,62 @@ async function createMatch(req, res){
     }
 }
 
+async function joinMatch(req, res){
+    try {
+
+        const {roomCode} = req.params
+
+        const match = await matchModel.findOne({roomCode})
+
+        if (!match){
+            return res.status(404).json({
+                messsage: "Room not found!"
+            })
+        }
+
+        if (match.status !== "waiting"){
+            return res.status(400).json({
+                message: "Match has already started"
+            })
+        }
+
+        if (match.players.length >=2){
+            return res.status(400).json({
+                message: "Room is full!"
+            })
+        }
+
+        const alreadyIn = match.players.some(player => player.userId.toString() === req.user._id.toString())
+
+        if (alreadyIn){
+            return res.status(400).json({
+                message: "You are already in this match"
+            })
+        }
+
+        match.players.push({
+            userId: req.user._id,
+            username: req.user.username
+        })
+
+        return res.status(200).json({
+            message: "Joined Match Successfully",
+            match
+        })
+
+
+
+        
+    } catch (error) {
+        console.error("Match Join Error:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+}
+
 
 module.exports ={
-    createMatch
+    createMatch,
+    joinMatch
 }
