@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     select: false // Never return password by default
   },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
   // Game Stats
   eloRating: { 
     type: Number, 

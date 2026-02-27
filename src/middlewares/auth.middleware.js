@@ -37,6 +37,27 @@ async function isLoggedIn(req, res, next){
     }
 }
 
+async function isAdmin(req, res, next){
+    try {
+        const {role} = req.user
+
+        if (role !== "admin"){
+            return res.status(401).json({
+                message: "Access Denied"
+            })
+        }
+
+        next()
+        
+    } catch (error) {
+        console.error("Auth middleware error:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        })
+    }
+}
+
 module.exports = {
-    isLoggedIn
+    isLoggedIn,
+    isAdmin
 }
