@@ -3,6 +3,23 @@ const userModel = require("../models/user.model.js")
 const jdoodleService = require("../services/jdoodle.service.js")
 
 
+const K_FACTOR = 32  // How much ratings swing per match
+
+/**
+ * ELO Rating Calculator
+ * Returns new ratings for both winner and loser
+ */
+function calculateElo(winnerRating, loserRating) {
+    const expectedWinner = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400))
+    const expectedLoser = 1 / (1 + Math.pow(10, (winnerRating - loserRating) / 400))
+
+    const newWinnerRating = Math.round(winnerRating + K_FACTOR * (1 - expectedWinner))
+    const newLoserRating = Math.round(loserRating + K_FACTOR * (0 - expectedLoser))
+
+    return { newWinnerRating, newLoserRating }
+}
+
+
 /**
  * POST /api/match/submit-code/:roomCode
  * Body: { code: "...", language: "python3" }
@@ -78,6 +95,7 @@ async function submitCode(req, res) {
             })
         }
 
+
         // --- If all passed, this player wins! ---
         if (allPassed) {
             match.winnerId = req.user._id
@@ -85,17 +103,31 @@ async function submitCode(req, res) {
             match.endTime = new Date()
             match.players[playerIndex].isWinner = true
 
-            await userModel.findByIdAndUpdate(req.user._id, {
-                $inc: { totalMatches: 1, wins: 1 }
-            })
-
+            // --- Calculate ELO ratings ---
+            const winner = await userModel.findById(req.user._id)
             const otherPlayer = match.players.find(
                 p => p.userId.toString() !== req.user._id.toString()
             )
-            if (otherPlayer) {
-                await userModel.findByIdAndUpdate(otherPlayer.userId, {
-                    $inc: { totalMatches: 1, losses: 1 }
+            const loser = otherPlayer ? await userModel.findById(otherPlayer.userId) : null
+
+            if (winner && loser) {
+                const { newWinnerRating, newLoserRating } = calculateElo(winner.eloRating, loser.eloRating)
+
+                await userModel.findByIdAndUpdate(winner._id, {
+                    $inc: { totalMatches: 1, wins: 1 },
+                    $set: { eloRating: newWinnerRating }
                 })
+
+                await userModel.findByIdAndUpdate(loser._id, {
+                    $inc: { totalMatches: 1, losses: 1 },
+                    $set: { eloRating: newLoserRating }
+                })
+
+                // Attach ELO changes to response
+                match._eloChange = {
+                    winner: { username: winner.username, oldRating: winner.eloRating, newRating: newWinnerRating, change: newWinnerRating - winner.eloRating },
+                    loser: { username: loser.username, oldRating: loser.eloRating, newRating: newLoserRating, change: newLoserRating - loser.eloRating }
+                }
             }
         }
 
@@ -108,7 +140,8 @@ async function submitCode(req, res) {
             allPassed,
             totalTestCases: hiddenTestCases.length,
             passedCount,
-            results
+            results,
+            ...(match._eloChange ? { eloChange: match._eloChange } : {})
         })
 
     } catch (error) {
