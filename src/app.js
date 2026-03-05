@@ -6,6 +6,7 @@ const matchRoutes = require('./routes/match.routes.js')
 const authRoutes = require('./routes/auth.routes.js')
 const problemRoutes = require('./routes/problems.routes.js')
 const profileRoutes = require('./routes/profile.routes.js')
+const leaderboardRoutes = require('./routes/leaderboard.js')
 const cookieParser = require('cookie-parser');
 
 
@@ -18,6 +19,7 @@ app.use("/api/auth", authRoutes)
 app.use("/api/problems", problemRoutes)
 app.use("/api/match", matchRoutes)
 app.use("/api/profile", profileRoutes)
+app.use("/api/leaderboard", leaderboardRoutes)
 
 
 
