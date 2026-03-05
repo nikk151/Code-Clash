@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 
 async function registerController(req, res) {
     try {
-        const { username, email, password } = req.body;
+        const { username, email, password, role } = req.body;
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -31,7 +31,8 @@ async function registerController(req, res) {
         const user = await userModel.create({
             username,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role
         });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -46,6 +47,7 @@ async function registerController(req, res) {
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                role: user.role
             }
         });
     } catch (error) {

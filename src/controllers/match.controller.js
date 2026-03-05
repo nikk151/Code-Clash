@@ -3,16 +3,16 @@ const problemModel = require("../models/problems.model.js")
 const crypto = require("crypto")
 
 
-async function createMatch(req, res){
+async function createMatch(req, res) {
     try {
 
-        const { difficulty } = req.body
+        const { difficulty } = req.body || {}
 
         const filter = difficulty ? { difficulty } : {}
 
         const problem = await problemModel.find(filter)
 
-        if (problem.length === 0){
+        if (problem.length === 0) {
             return res.status(404).json({
                 message: "No Problem Found"
             })
@@ -24,18 +24,18 @@ async function createMatch(req, res){
 
         const match = await matchModel.create({
             roomCode,
-            players : [{
-                userId : req.user._id,
-                username : req.user.username
+            players: [{
+                userId: req.user._id,
+                username: req.user.username
             }],
-            problemId : randomProblem._id,
-            status : "waiting"
+            problemId: randomProblem._id,
+            status: "waiting"
         })
 
         return res.status(201).json({
             message: "Room Created Successfully!  Share this room code with your friend.",
             roomCode,
-            problem : {
+            problem: {
                 title: randomProblem.title,
                 difficulty: randomProblem.difficulty,
             }
@@ -43,7 +43,7 @@ async function createMatch(req, res){
 
 
 
-        
+
     } catch (error) {
         console.error("Match Creation Error:", error);
         return res.status(500).json({
@@ -52,26 +52,26 @@ async function createMatch(req, res){
     }
 }
 
-async function joinMatch(req, res){
+async function joinMatch(req, res) {
     try {
 
-        const {roomCode} = req.params
+        const { roomCode } = req.params
 
-        const match = await matchModel.findOne({roomCode})
+        const match = await matchModel.findOne({ roomCode })
 
-        if (!match){
+        if (!match) {
             return res.status(404).json({
-                messsage: "Room not found!"
+                message: "Room not found!"
             })
         }
 
-        if (match.status !== "waiting"){
+        if (match.status !== "waiting") {
             return res.status(400).json({
                 message: "Match has already started"
             })
         }
 
-        if (match.players.length >=2){
+        if (match.players.length >= 2) {
             return res.status(400).json({
                 message: "Room is full!"
             })
@@ -79,7 +79,7 @@ async function joinMatch(req, res){
 
         const alreadyIn = match.players.some(player => player.userId.toString() === req.user._id.toString())
 
-        if (alreadyIn){
+        if (alreadyIn) {
             return res.status(400).json({
                 message: "You are already in this match"
             })
@@ -90,14 +90,24 @@ async function joinMatch(req, res){
             username: req.user.username
         })
 
+        // Auto-start when 2 players have joined
+        if (match.players.length === 2) {
+            match.status = "in-progress"
+            match.startTime = new Date()
+        }
+
+        await match.save()
+
         return res.status(200).json({
-            message: "Joined Match Successfully",
+            message: match.status === "in-progress"
+                ? "Joined! Match is now in progress. Start coding!"
+                : "Joined Match Successfully",
             match
         })
 
 
 
-        
+
     } catch (error) {
         console.error("Match Join Error:", error);
         return res.status(500).json({
@@ -107,7 +117,7 @@ async function joinMatch(req, res){
 }
 
 
-module.exports ={
+module.exports = {
     createMatch,
     joinMatch
 }

@@ -18,6 +18,8 @@ const matchSchema = new mongoose.Schema({
       }
     }
   ],
+
+  roomCode: { type: String, required: true, unique: true },
   
   problemId: { 
     type: mongoose.Schema.Types.ObjectId, 

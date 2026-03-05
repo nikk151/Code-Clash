@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./config');  // Validate env vars on startup
 
 const express = require('express')
 const matchRoutes = require('./routes/match.routes.js')
