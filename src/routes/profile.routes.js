@@ -5,7 +5,8 @@ const authMiddleware = require("../middlewares/auth.middleware.js")
 const profileController = require("../controllers/profile.controller.js")
 
 
-router.get("/stats",authMiddleware.isLoggedIn, profileController.getStats)
+router.get("/stats", authMiddleware.isLoggedIn, profileController.getStats)
+
 
 
 

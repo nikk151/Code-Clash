@@ -67,6 +67,31 @@ async function createProblem(req, res){
     }
 }
 
+async function deleteProblem(req, res) {
+    try {
+        const { slug } = req.params
+
+        const problem = await problemModel.findOneAndDelete({ slug })
+
+        if (!problem) {
+            return res.status(404).json({
+                message: "Problem Not Found"
+            })
+        }
+
+        return res.status(200).json({
+            message: "Problem Deleted Successfully"
+        })
+
+    } catch (error) {
+        console.error("Problem Deletion Error:", error)
+        return res.status(500).json({
+            message: "Internal Server Error"
+        })
+    }
+}
+
+
 
 async function getProblem( req , res ){
     try {
@@ -102,5 +127,6 @@ async function getProblem( req , res ){
 
 module.exports = {
     createProblem,
-    getProblem
+    getProblem,
+    deleteProblem
 }

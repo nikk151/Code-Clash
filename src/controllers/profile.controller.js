@@ -1,5 +1,3 @@
-const userModel = require("../models/user.model.js")
-
 
 async function getStats(req, res){
     try {
