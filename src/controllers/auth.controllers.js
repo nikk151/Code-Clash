@@ -42,8 +42,7 @@ async function registerController(req, res) {
         const user = await userModel.create({
             username,
             email,
-            password: hashedPassword,
-            role
+            password: hashedPassword
         });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
