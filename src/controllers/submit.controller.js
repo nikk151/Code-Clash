@@ -1,13 +1,11 @@
-const matchModel = require("../models/match.model.js")
 const userModel = require("../models/user.model.js")
 const jdoodleService = require("../services/jdoodle.service.js")
 
 
-const K_FACTOR = 32  // How much ratings swing per match
+const K_FACTOR = 32
 
 /**
  * ELO Rating Calculator
- * Returns new ratings for both winner and loser
  */
 function calculateElo(winnerRating, loserRating) {
     const expectedWinner = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400))
@@ -22,35 +20,16 @@ function calculateElo(winnerRating, loserRating) {
 
 /**
  * POST /api/match/submit-code/:roomCode
- * Body: { code: "...", language: "python3" }
- *
- * Wraps ALL test cases into a single JDoodle call (1 API credit per submission).
+ * Runs code against HIDDEN test cases. Only works when match is in-progress.
+ * Determines winner, updates ELO.
  */
 async function submitCode(req, res) {
     try {
-        const { roomCode } = req.params
         const { code, language } = req.body
+        const { match, problem, playerIndex } = req  // from validateSubmission middleware
+        const roomCode = req.params.roomCode
 
-        // --- Validation ---
-        if (!code || !language) {
-            return res.status(400).json({
-                message: "Code and language are required"
-            })
-        }
-
-        if (!jdoodleService.isLanguageSupported(language)) {
-            return res.status(400).json({
-                message: `Unsupported language. Supported: ${jdoodleService.getSupportedLanguages().join(", ")}`
-            })
-        }
-
-        // --- Find match ---
-        const match = await matchModel.findOne({ roomCode }).populate("problemId")
-
-        if (!match) {
-            return res.status(404).json({ message: "Match not found" })
-        }
-
+        // --- Only allow during active match ---
         if (match.status === "completed") {
             return res.status(400).json({ message: "Match is already completed" })
         }
@@ -61,29 +40,17 @@ async function submitCode(req, res) {
             })
         }
 
-        // --- Verify player is in the match ---
-        const playerIndex = match.players.findIndex(
-            p => p.userId.toString() === req.user._id.toString()
-        )
-
-        if (playerIndex === -1) {
-            return res.status(403).json({ message: "You are not a participant of this match" })
-        }
-
-        // --- Get hidden test cases from the problem ---
-        const problem = match.problemId
         const hiddenTestCases = problem.hiddenTestCases
 
-        // --- Save player's code ---
+        // Save player's code
         match.players[playerIndex].code = code
         match.players[playerIndex].status = "submitted"
 
-        // --- Run all test cases in ONE API call ---
+        // Run all test cases in ONE API call
         const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
             code, language, hiddenTestCases
         )
 
-        // Compilation/runtime error
         if (error) {
             await match.save()
             return res.status(200).json({
@@ -95,15 +62,14 @@ async function submitCode(req, res) {
             })
         }
 
-
-        // --- If all passed, this player wins! ---
+        // If all passed, this player wins!
         if (allPassed) {
             match.winnerId = req.user._id
             match.status = "completed"
             match.endTime = new Date()
             match.players[playerIndex].isWinner = true
 
-            // --- Calculate ELO ratings ---
+            // Calculate ELO ratings
             const winner = await userModel.findById(req.user._id)
             const otherPlayer = match.players.find(
                 p => p.userId.toString() !== req.user._id.toString()
@@ -123,11 +89,22 @@ async function submitCode(req, res) {
                     $set: { eloRating: newLoserRating }
                 })
 
-                // Attach ELO changes to response
                 match._eloChange = {
                     winner: { username: winner.username, oldRating: winner.eloRating, newRating: newWinnerRating, change: newWinnerRating - winner.eloRating },
                     loser: { username: loser.username, oldRating: loser.eloRating, newRating: newLoserRating, change: newLoserRating - loser.eloRating }
                 }
+            }
+        }
+
+        // Notify opponent via Socket.io
+        if (allPassed) {
+            const io = req.app.get('io')
+            if (io) {
+                io.to(roomCode).emit("match-over", {
+                    winner: req.user.username,
+                    eloChange: match._eloChange || null,
+                    message: `${req.user.username} won the match!`
+                })
             }
         }
 
@@ -151,6 +128,55 @@ async function submitCode(req, res) {
 }
 
 
+/**
+ * POST /api/match/run-sample/:roomCode
+ * Runs code against SAMPLE test cases only. Works anytime (even after match ends).
+ * Doesn't affect match state — just gives feedback.
+ */
+async function runSampleTestCases(req, res) {
+    try {
+        const { code, language } = req.body
+        const { problem } = req  // from validateSubmission middleware
+
+        const sampleTestCases = problem.sampleTestCases
+
+        if (!sampleTestCases || sampleTestCases.length === 0) {
+            return res.status(400).json({ message: "No sample test cases for this problem" })
+        }
+
+        // Run against sample test cases
+        const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
+            code, language, sampleTestCases
+        )
+
+        if (error) {
+            return res.status(200).json({
+                message: "Compilation or Runtime Error",
+                allPassed: false,
+                error,
+                totalTestCases: sampleTestCases.length,
+                passedCount: 0
+            })
+        }
+
+        return res.status(200).json({
+            message: allPassed
+                ? "✅ All sample test cases passed!"
+                : "Some sample test cases failed.",
+            allPassed,
+            totalTestCases: sampleTestCases.length,
+            passedCount,
+            results
+        })
+
+    } catch (error) {
+        console.error("Run Sample Error:", error)
+        return res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+
 module.exports = {
-    submitCode
+    submitCode,
+    runSampleTestCases
 }
