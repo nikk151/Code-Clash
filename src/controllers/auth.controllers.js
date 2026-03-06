@@ -1,11 +1,13 @@
 const userModel = require("../models/user.model.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const OTP = require("../services/email.service.js");
+
 
 
 async function registerController(req, res) {
     try {
-        const { username, email, password, role } = req.body;
+        const { username, email, password, otp } = req.body;
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -24,6 +26,14 @@ async function registerController(req, res) {
             return res.status(400).json({
                 message: "User Already Exist"
             });
+        }
+
+
+
+        // Verify OTP first
+        const isValid = await OTP.verifyOTP(email, otp)
+        if (!isValid) {
+            return res.status(400).json({ message: "Invalid or expired OTP" })
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -126,9 +136,33 @@ async function logoutUser(req, res) {
     }
 }
 
+async function sendOTPController(req, res) {
+    try {
+        const { email } = req.body
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required"
+            });
+        }
+
+        await OTP.sendOTP(email)
+
+        return res.status(200).json({
+            message: "OTP sent successfully"
+        });
+    } catch (error) {
+        console.error("Send OTP error:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+}
+
 
 module.exports = {
     registerController,
     loginUser,
-    logoutUser
+    logoutUser,
+    sendOTPController
 }
