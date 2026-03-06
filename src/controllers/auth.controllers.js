@@ -2,6 +2,7 @@ const userModel = require("../models/user.model.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const OTP = require("../services/email.service.js");
+const OTPModel = require("../models/otp.model.js");
 
 
 
@@ -159,10 +160,40 @@ async function sendOTPController(req, res) {
     }
 }
 
+async function changePasswordController(req, res) {
+    try {
+        const { email, otp, newPassword } = req.body
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "All fields are required" })
+        }
+
+        const user = await userModel.findOne({ email })
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+
+        const isValid = await OTP.verifyOTP(email, otp)
+        if (!isValid) {
+            return res.status(400).json({ message: "Invalid or expired OTP" })
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10)
+        await user.save()
+
+        return res.status(200).json({ message: "Password changed successfully" })
+
+    } catch (error) {
+        console.error("Change Password Error:", error)
+        return res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
 
 module.exports = {
     registerController,
     loginUser,
     logoutUser,
-    sendOTPController
+    sendOTPController,
+    changePasswordController
 }
