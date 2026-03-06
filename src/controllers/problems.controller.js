@@ -147,8 +147,37 @@ async function getAllProblems(req, res) {
     }
 }
 
+
+async function editProblem(req, res) {
+    try {
+        const { slug } = req.params
+
+        const problem = await problemModel.findOneAndUpdate(
+            { slug },
+            req.body,
+            { new: true, runValidators: true }
+        )
+
+        if (!problem) {
+            return res.status(404).json({ message: "Problem Not Found" })
+        }
+
+        return res.status(200).json({
+            message: "Problem Updated Successfully",
+            problem
+        })
+
+    } catch (error) {
+        console.error("Problem Edit Error:", error)
+        return res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+
 module.exports = {
     createProblem,
     getProblem,
-    deleteProblem
+    deleteProblem,
+    editProblem,
+    getAllProblems
 }

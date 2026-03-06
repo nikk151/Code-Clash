@@ -1,3 +1,5 @@
+const matchModel = require("../models/match.model.js")
+
 /**
  * Socket.io Event Handler
  * 
@@ -5,10 +7,13 @@
  * - join-room: Player enters a match room
  * - send-message: Chat between opponents
  * - code-submitted: Notify opponent that code was submitted
- * - disconnect: Handle player disconnection
+ * - disconnect: Handle player disconnection + auto-delete match when both leave
  */
 
 module.exports = function (io) {
+
+    // Track how many players are connected in each room
+    const roomPlayers = {}
 
     io.on("connection", (socket) => {
         console.log("⚡ User connected:", socket.id)
@@ -16,16 +21,16 @@ module.exports = function (io) {
 
         /**
          * Player joins a match room
-         * Frontend sends: socket.emit("join-room", { roomCode, username })
          */
         socket.on("join-room", ({ roomCode, username }) => {
             socket.join(roomCode)
-
-            // Store info on the socket so we can use it on disconnect
             socket.roomCode = roomCode
             socket.username = username
 
-            // Tell the OTHER player in the room that opponent joined
+            // Track players in room
+            if (!roomPlayers[roomCode]) roomPlayers[roomCode] = 0
+            roomPlayers[roomCode]++
+
             socket.to(roomCode).emit("opponent-joined", {
                 username,
                 message: `${username} has joined the match!`
@@ -37,10 +42,8 @@ module.exports = function (io) {
 
         /**
          * Chat message during a match
-         * Frontend sends: socket.emit("send-message", { roomCode, message })
          */
         socket.on("send-message", ({ roomCode, message }) => {
-            // Send to opponent only (not back to sender)
             socket.to(roomCode).emit("new-message", {
                 username: socket.username,
                 message,
@@ -51,7 +54,6 @@ module.exports = function (io) {
 
         /**
          * Player submitted their code
-         * Frontend sends: socket.emit("code-submitted", { roomCode })
          */
         socket.on("code-submitted", ({ roomCode }) => {
             socket.to(roomCode).emit("opponent-submitted", {
@@ -63,15 +65,30 @@ module.exports = function (io) {
 
         /**
          * Player disconnected (tab closed, WiFi dropped, etc.)
-         * This event fires AUTOMATICALLY — no frontend code needed
+         * When both players leave → delete match from DB to save space
          */
-        socket.on("disconnect", () => {
+        socket.on("disconnect", async () => {
             if (socket.roomCode) {
                 socket.to(socket.roomCode).emit("opponent-disconnected", {
                     username: socket.username,
                     message: `${socket.username} has disconnected!`
                 })
-                console.log(`${socket.username} disconnected from room ${socket.roomCode}`)
+
+                // Decrease player count
+                roomPlayers[socket.roomCode]--
+
+                // Both players left → delete match from DB
+                if (roomPlayers[socket.roomCode] <= 0) {
+                    try {
+                        await matchModel.findOneAndDelete({ roomCode: socket.roomCode })
+                        console.log(`🗑️ Match ${socket.roomCode} deleted (both players left)`)
+                    } catch (err) {
+                        console.error("Match cleanup error:", err)
+                    }
+                    delete roomPlayers[socket.roomCode]
+                }
+
+                console.log(`${socket.username} disconnected from ${socket.roomCode}`)
             }
         })
     })

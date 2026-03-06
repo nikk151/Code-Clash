@@ -20,23 +20,22 @@ function calculateElo(winnerRating, loserRating) {
 
 /**
  * POST /api/match/submit-code/:roomCode
- * Runs code against HIDDEN test cases. Only works when match is in-progress.
- * Determines winner, updates ELO.
+ * 
+ * Runs code against HIDDEN test cases.
+ * - First player to pass all tests = winner (ELO updated)
+ * - Second player can STILL submit to check if their code was correct
+ * - Match only goes to "completed" when BOTH players have submitted
  */
 async function submitCode(req, res) {
     try {
         const { code, language } = req.body
-        const { match, problem, playerIndex } = req  // from validateSubmission middleware
+        const { match, problem, playerIndex } = req
         const roomCode = req.params.roomCode
 
-        // --- Only allow during active match ---
-        if (match.status === "completed") {
-            return res.status(400).json({ message: "Match is already completed" })
-        }
-
+        // Only allow when match is in-progress
         if (match.status !== "in-progress") {
             return res.status(400).json({
-                message: "Match is not in progress yet. Both players need to join first."
+                message: "Match is not in progress."
             })
         }
 
@@ -52,6 +51,8 @@ async function submitCode(req, res) {
         )
 
         if (error) {
+            // Don't mark as "submitted" if there was a compilation error — let them retry
+            match.players[playerIndex].status = "coding"
             await match.save()
             return res.status(200).json({
                 message: "Compilation or Runtime Error",
@@ -62,11 +63,9 @@ async function submitCode(req, res) {
             })
         }
 
-        // If all passed, this player wins!
-        if (allPassed) {
+        // --- If all passed and no winner yet, this player wins ---
+        if (allPassed && !match.winnerId) {
             match.winnerId = req.user._id
-            match.status = "completed"
-            match.endTime = new Date()
             match.players[playerIndex].isWinner = true
 
             // Calculate ELO ratings
@@ -94,10 +93,8 @@ async function submitCode(req, res) {
                     loser: { username: loser.username, oldRating: loser.eloRating, newRating: newLoserRating, change: newLoserRating - loser.eloRating }
                 }
             }
-        }
 
-        // Notify opponent via Socket.io
-        if (allPassed) {
+            // Notify opponent via Socket.io
             const io = req.app.get('io')
             if (io) {
                 io.to(roomCode).emit("match-over", {
@@ -108,16 +105,32 @@ async function submitCode(req, res) {
             }
         }
 
+        // --- Check if both players have submitted → mark match completed ---
+        const bothSubmitted = match.players.every(p => p.status === "submitted")
+        if (bothSubmitted) {
+            match.status = "completed"
+            match.endTime = new Date()
+        }
+
         await match.save()
 
+        // Build response message
+        let message
+        if (allPassed && match.winnerId?.toString() === req.user._id.toString()) {
+            message = "🎉 All test cases passed! You win!"
+        } else if (allPassed && match.winnerId) {
+            message = "✅ All test cases passed! But your opponent solved it first."
+        } else {
+            message = "Some test cases failed. Try again!"
+        }
+
         return res.status(200).json({
-            message: allPassed
-                ? "🎉 All test cases passed! You win!"
-                : "Some test cases failed. Try again!",
+            message,
             allPassed,
             totalTestCases: hiddenTestCases.length,
             passedCount,
             results,
+            matchStatus: match.status,
             ...(match._eloChange ? { eloChange: match._eloChange } : {})
         })
 
@@ -130,13 +143,12 @@ async function submitCode(req, res) {
 
 /**
  * POST /api/match/run-sample/:roomCode
- * Runs code against SAMPLE test cases only. Works anytime (even after match ends).
- * Doesn't affect match state — just gives feedback.
+ * Runs code against SAMPLE test cases. Works anytime — doesn't affect match.
  */
 async function runSampleTestCases(req, res) {
     try {
         const { code, language } = req.body
-        const { problem } = req  // from validateSubmission middleware
+        const { problem } = req
 
         const sampleTestCases = problem.sampleTestCases
 
@@ -144,7 +156,6 @@ async function runSampleTestCases(req, res) {
             return res.status(400).json({ message: "No sample test cases for this problem" })
         }
 
-        // Run against sample test cases
         const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
             code, language, sampleTestCases
         )
