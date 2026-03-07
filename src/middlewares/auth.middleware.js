@@ -4,12 +4,12 @@ const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model.js")
 
 
-async function isLoggedIn(req, res, next){
+async function isLoggedIn(req, res, next) {
     try {
 
         const token = req.cookies.token
 
-        if (!token){
+        if (!token) {
             return res.status(401).json({
                 message: "Access Denied"
             })
@@ -19,7 +19,7 @@ async function isLoggedIn(req, res, next){
 
         const user = await userModel.findById(decoded.id)
 
-        if (!user){
+        if (!user) {
             return res.status(401).json({
                 message: "User Not Found"
             })
@@ -28,7 +28,7 @@ async function isLoggedIn(req, res, next){
         req.user = user
 
         next()
-        
+
     } catch (error) {
         console.error("Auth middleware error:", error);
         return res.status(500).json({
@@ -37,18 +37,18 @@ async function isLoggedIn(req, res, next){
     }
 }
 
-async function isAdmin(req, res, next){
+async function isAdmin(req, res, next) {
     try {
-        const {role} = req.user
+        const { role } = req.user
 
-        if (role !== "admin"){
-            return res.status(401).json({
-                message: "Access Denied"
+        if (role !== "admin") {
+            return res.status(403).json({
+                message: "Access Denied — Admins only"
             })
         }
 
         next()
-        
+
     } catch (error) {
         console.error("Auth middleware error:", error);
         return res.status(500).json({

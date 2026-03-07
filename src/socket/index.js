@@ -1,4 +1,5 @@
 const matchModel = require("../models/match.model.js")
+const xss = require('xss')
 
 /**
  * Socket.io Event Handler
@@ -46,7 +47,7 @@ module.exports = function (io) {
         socket.on("send-message", ({ roomCode, message }) => {
             socket.to(roomCode).emit("new-message", {
                 username: socket.username,
-                message,
+                message: xss(message),
                 timestamp: new Date().toISOString()
             })
         })

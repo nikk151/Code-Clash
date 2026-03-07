@@ -1,4 +1,5 @@
 const problemModel = require("../models/problems.model")
+const xss = require('xss')
 
 
 
@@ -44,11 +45,11 @@ async function createProblem(req, res) {
         }
 
         const problem = await problemModel.create({
-            title,
+            title: xss(title),
             slug,
-            description,
+            description: xss(description),
             difficulty,
-            starterCode,
+            starterCode: xss(starterCode),
             sampleTestCases,
             hiddenTestCases
         })
@@ -152,9 +153,15 @@ async function editProblem(req, res) {
     try {
         const { slug } = req.params
 
+        // Sanitize text fields before updating
+        const updates = { ...req.body }
+        if (updates.title) updates.title = xss(updates.title)
+        if (updates.description) updates.description = xss(updates.description)
+        if (updates.starterCode) updates.starterCode = xss(updates.starterCode)
+
         const problem = await problemModel.findOneAndUpdate(
             { slug },
-            req.body,
+            updates,
             { new: true, runValidators: true }
         )
 

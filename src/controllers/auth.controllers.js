@@ -2,7 +2,8 @@ const userModel = require("../models/user.model.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const OTP = require("../services/email.service.js");
-const OTPModel = require("../models/otp.model.js");
+const { validatePassword } = require("../utils/validators.js");
+const xss = require('xss')
 
 
 
@@ -37,11 +38,17 @@ async function registerController(req, res) {
             return res.status(400).json({ message: "Invalid or expired OTP" })
         }
 
+        // Validate password strength
+        const passwordError = validatePassword(password)
+        if (passwordError) {
+            return res.status(400).json({ message: passwordError })
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await userModel.create({
-            username,
-            email,
+            username: xss(username),
+            email: xss(email),
             password: hashedPassword
         });
 
@@ -165,6 +172,11 @@ async function changePasswordController(req, res) {
 
         if (!email || !otp || !newPassword) {
             return res.status(400).json({ message: "All fields are required" })
+        }
+
+        const passwordError = validatePassword(newPassword)
+        if (passwordError) {
+            return res.status(400).json({ message: passwordError })
         }
 
         const user = await userModel.findOne({ email })
