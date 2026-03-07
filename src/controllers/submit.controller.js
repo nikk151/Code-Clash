@@ -39,6 +39,15 @@ async function submitCode(req, res) {
             })
         }
 
+        if (match.players[playerIndex].submissionCount >= 3) {
+            return res.status(400).json({
+                message: "Maximum 3 submissions allowed per match",
+                submissionsLeft: 0
+            })
+        }
+
+        match.players[playerIndex].submissionCount++
+
         const hiddenTestCases = problem.hiddenTestCases
 
         // Save player's code
@@ -127,6 +136,7 @@ async function submitCode(req, res) {
         return res.status(200).json({
             message,
             allPassed,
+            submissionsLeft: 3 - match.players[playerIndex].submissionCount,
             totalTestCases: hiddenTestCases.length,
             passedCount,
             results,

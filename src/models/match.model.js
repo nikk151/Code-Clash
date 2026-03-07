@@ -15,7 +15,8 @@ const matchSchema = new mongoose.Schema({
         type: String, 
         enum: ['idle', 'coding', 'submitted', 'disqualified'],
         default: 'idle'
-      }
+      },
+      submissionCount: { type: Number, default: 0 }
     }
   ],
 

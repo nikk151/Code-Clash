@@ -10,6 +10,7 @@ const leaderboardRoutes = require('./routes/leaderboard.js')
 const cookieParser = require('cookie-parser');
 const cors = require('cors')
 const rateLimit = require('express-rate-limit')
+const helmet = require('helmet')
 
 
 const app = express()
@@ -19,6 +20,7 @@ app.use(cors({
     origin: "http://localhost:5173",  // React dev server URL
     credentials: true                 // allow cookies
 }))
+app.use(helmet());
 // Rate limiting — general (100 requests per 15 min)
 app.use('/api/', rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -35,7 +37,6 @@ app.use('/api/match/submit-code', rateLimit({
 
 app.use(express.json())
 app.use(cookieParser());
-
 
 app.use("/api/auth", authRoutes)
 app.use("/api/problems", problemRoutes)

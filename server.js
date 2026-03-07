@@ -4,8 +4,15 @@ const { Server } = require('socket.io')
 const app = require('./src/app')
 const connectDB = require('./src/db/db.js')
 const setupSocket = require('./src/socket')
+const matchModel = require('./src/models/match.model.js')
 
-connectDB()
+connectDB().then(async () => {
+    // Clean up stale matches from previous server sessions
+    const result = await matchModel.deleteMany({ status: { $in: ["waiting", "in-progress"] } })
+    if (result.deletedCount > 0) {
+        console.log(`🧹 Cleaned up ${result.deletedCount} stale match(es)`)
+    }
+})
 
 // Create HTTP server and attach Socket.io
 const server = http.createServer(app)

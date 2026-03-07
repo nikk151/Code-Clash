@@ -8,7 +8,7 @@ async function getLeaderboard(req, res) {
 
         return res.status(200).json({
             message: "Leaderboard Fetched Successfully",
-            Leaderboard
+            leaderboard: Leaderboard
         })
 
     } catch (error) {

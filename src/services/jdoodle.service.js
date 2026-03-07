@@ -208,7 +208,13 @@ async function executeOnJDoodle(script, language, stdin) {
     })
 
     if (!response.ok) {
-        throw new Error(`JDoodle API error: ${response.status}`)
+        if (response.status === 401) {
+            throw new Error("JDoodle API Error: Invalid Client ID or Secret")
+        }
+        if (response.status === 429) {
+            throw new Error("JDoodle API Error: Daily credit limit reached!")
+        }
+        throw new Error(`JDoodle API Error: ${response.status}`)
     }
 
     return await response.json()
@@ -224,10 +230,19 @@ async function runAllTestCases(userCode, language, hiddenTestCases) {
     const wrapped = buildWrappedScript(userCode, hiddenTestCases, language)
 
     let jdoodleResult
-    if (wrapped.isCStyle) {
-        jdoodleResult = await executeOnJDoodle(wrapped.script, language, wrapped.stdin)
-    } else {
-        jdoodleResult = await executeOnJDoodle(wrapped, language, "")
+    try {
+        if (wrapped.isCStyle) {
+            jdoodleResult = await executeOnJDoodle(wrapped.script, language, wrapped.stdin)
+        } else {
+            jdoodleResult = await executeOnJDoodle(wrapped, language, "")
+        }
+    } catch (apiError) {
+        return {
+            allPassed: false,
+            error: apiError.message,
+            results: [],
+            passedCount: 0
+        }
     }
 
     // Compilation or runtime error
