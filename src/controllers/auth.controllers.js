@@ -17,6 +17,7 @@ async function registerController(req, res) {
             });
         }
 
+        // Check if username or email is already taken to enforce unique user accounts
         const isUserExist = await userModel.findOne({
             $or: [
                 { username },
@@ -32,30 +33,34 @@ async function registerController(req, res) {
 
 
 
-        // Verify OTP first
+        // Verify the 6-digit OTP sent to their email to ensure they own the email address
         const isValid = await OTP.verifyOTP(email, otp)
         if (!isValid) {
             return res.status(400).json({ message: "Invalid or expired OTP" })
         }
 
-        // Validate password strength
+        // Enforce password strength policies (length, uppercase, numbers) for security
         const passwordError = validatePassword(password)
         if (passwordError) {
             return res.status(400).json({ message: passwordError })
         }
 
+        // Hash the password so that if the DB is compromised, user passwords remain secure
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Store sanitized username and email to prevent XSS attacks via profile details
         const user = await userModel.create({
             username: xss(username),
             email: xss(email),
             password: hashedPassword
         });
 
+        // Generate a JWT to keep the user authenticated across requests
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
             expiresIn: "7d"
         });
 
+        // Store JWT in an HttpOnly cookie to protect against client-side script access (reducing XSS risks)
         res.cookie("token", token, { httpOnly: true });
 
         return res.status(201).json({
@@ -86,12 +91,13 @@ async function loginUser(req, res) {
             });
         }
 
+        // We must select('+password') because it is normally hidden in schema by select: false
         const isUserExist = await userModel.findOne({
             $or: [
                 { username },
                 { email }
             ]
-        }).select('+password');  // explicitly fetch password since select:false in schema
+        }).select('+password');
 
         if (!isUserExist) {
             return res.status(400).json({

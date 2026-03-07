@@ -1,10 +1,11 @@
 
-async function getStats(req, res){
+async function getStats(req, res) {
     try {
-        
+
+        // req.user is already populated by the authMiddleware, so we avoid hitting the database again here
         const user = req.user
 
-        
+
         return res.status(200).json({
             message: "Stats Fetched Successfully",
             stats: {

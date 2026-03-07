@@ -18,8 +18,10 @@ async function createMatch(req, res) {
             })
         }
 
+        // Pick a random problem so that users face a different challenge each match
         const randomProblem = problem[Math.floor(Math.random() * problem.length)]
 
+        // Generate a 6-character secure random hex code (e.g., A1B2C3) for easy sharing
         const roomCode = crypto.randomBytes(3).toString('hex').toUpperCase()
 
         const match = await matchModel.create({
@@ -71,12 +73,14 @@ async function joinMatch(req, res) {
             })
         }
 
+        // Enforce a strict 2-player limit to keep it a 1v1 match
         if (match.players.length >= 2) {
             return res.status(400).json({
                 message: "Room is full!"
             })
         }
 
+        // Prevent the exact same user from joining their own room twice (e.g. from two tabs)
         const alreadyIn = match.players.some(player => player.userId.toString() === req.user._id.toString())
 
         if (alreadyIn) {
@@ -90,7 +94,7 @@ async function joinMatch(req, res) {
             username: req.user.username
         })
 
-        // Auto-start when 2 players have joined
+        // Auto-start the match immediately when the 2nd player joins, ensuring a fast UX without a 'Start' button
         if (match.players.length === 2) {
             match.status = "in-progress"
             match.startTime = new Date()

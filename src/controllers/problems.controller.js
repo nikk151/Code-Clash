@@ -8,12 +8,14 @@ async function createProblem(req, res) {
 
         const { title, description, difficulty, starterCode, sampleTestCases, hiddenTestCases } = req.body
 
+        // Ensure all critical fields are present before proceeding with creation
         if (!title || !description || !sampleTestCases || !hiddenTestCases || !starterCode) {
             return res.status(400).json({
                 message: "All fields are required"
             })
         }
 
+        // Check if problem already exists to prevent duplicate entries in the database
         const isProblemExist = await problemModel.findOne({ title })
 
         if (isProblemExist) {
@@ -34,8 +36,10 @@ async function createProblem(req, res) {
             })
         }
 
+        // Generate a URL-friendly slug from the title (e.g. "Two Sum" -> "two-sum") for clean routing
         const slug = title.toLowerCase().replace(/\s+/g, '-')
 
+        // Validate that every test case is properly formatted to prevent crashes during code execution
         const validTestCases = (tc) => tc.input !== undefined && tc.output !== undefined
 
         if (!sampleTestCases.every(validTestCases) || !hiddenTestCases.every(validTestCases)) {
@@ -44,6 +48,7 @@ async function createProblem(req, res) {
             })
         }
 
+        // Create the problem in the database, wrapping user inputs in xss() to prevent Cross-Site Scripting attacks
         const problem = await problemModel.create({
             title: xss(title),
             slug,
@@ -153,7 +158,7 @@ async function editProblem(req, res) {
     try {
         const { slug } = req.params
 
-        // Sanitize text fields before updating
+        // Clone req.body so we can sanitize specific text fields before saving to DB to prevent XSS attacks
         const updates = { ...req.body }
         if (updates.title) updates.title = xss(updates.title)
         if (updates.description) updates.description = xss(updates.description)

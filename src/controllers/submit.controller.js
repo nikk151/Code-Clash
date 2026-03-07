@@ -21,13 +21,14 @@ async function submitCode(req, res) {
         const { match, problem, playerIndex } = req
         const roomCode = req.params.roomCode
 
-        // Only allow when match is in-progress
+        // Reject submissions if the match hasn't started or is already over to prevent tampering
         if (match.status !== "in-progress") {
             return res.status(400).json({
                 message: "Match is not in progress."
             })
         }
 
+        // Limit to 3 submissions to protect JDoodle API credits and prevent brute-forcing
         if (match.players[playerIndex].submissionCount >= 3) {
             return res.status(400).json({
                 message: "Maximum 3 submissions allowed per match",
@@ -35,21 +36,22 @@ async function submitCode(req, res) {
             })
         }
 
+        // Increment the count BEFORE running code so that even failed compilations/timeouts use a credit
         match.players[playerIndex].submissionCount++
 
         const hiddenTestCases = problem.hiddenTestCases
 
-        // Save player's code
+        // Temporarily save code to the DB so players can review it later if needed
         match.players[playerIndex].code = code
         match.players[playerIndex].status = "submitted"
 
-        // Run all test cases in ONE API call
+        // Execute user's code via JDoodle against all hidden tests in a single API call to save credits
         const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
             code, language, hiddenTestCases
         )
 
         if (error) {
-            // Don't mark as "submitted" if there was a compilation error — let them retry
+            // Revert status to "coding" if there's a compilation error so the user has a chance to fix it (if they have submissions left)
             match.players[playerIndex].status = "coding"
             await match.save()
             return res.status(200).json({
@@ -61,12 +63,12 @@ async function submitCode(req, res) {
             })
         }
 
-        // --- If all passed and no winner yet, this player wins ---
+        // The condition `!match.winnerId` ensures that ONLY the FIRST player to pass all tests gets the win
         if (allPassed && !match.winnerId) {
             match.winnerId = req.user._id
             match.players[playerIndex].isWinner = true
 
-            // Calculate ELO ratings
+            // Fetch current ELO ratings for both players to accurately calculate MMR changes based on skill differences
             const winner = await userModel.findById(req.user._id)
             const otherPlayer = match.players.find(
                 p => p.userId.toString() !== req.user._id.toString()
@@ -103,7 +105,8 @@ async function submitCode(req, res) {
             }
         }
 
-        // --- Check if both players have submitted → mark match completed ---
+        // We wait for BOTH players to explicitly submit (or hit the limit) before officially ending the match
+        // This allows the loser to continue debugging to confirm their logic would have eventually worked
         const bothSubmitted = match.players.every(p => p.status === "submitted")
         if (bothSubmitted) {
             match.status = "completed"
