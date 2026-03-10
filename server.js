@@ -5,6 +5,7 @@ const app = require('./src/app')
 const connectDB = require('./src/db/db.js')
 const setupSocket = require('./src/socket')
 const matchModel = require('./src/models/match.model.js')
+const PORT = process.env.PORT || 8000;
 
 connectDB().then(async () => {
     // Clean up stale matches from previous server sessions
@@ -29,6 +30,6 @@ setupSocket(io)
 // Make io accessible in controllers (for emitting from REST routes)
 app.set('io', io)
 
-server.listen(3000, () => {
-    console.log('server is running on port 3000')
+server.listen(PORT, () => {
+    console.log(`server is running on port ${PORT}`)
 })
