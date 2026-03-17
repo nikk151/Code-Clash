@@ -10,6 +10,6 @@ router.post('/create-problem', authMiddleware.isLoggedIn, authMiddleware.isAdmin
 router.get('/get-problem/:slug', authMiddleware.isLoggedIn, problemsController.getProblem)
 router.delete("/delete-problem/:slug", authMiddleware.isLoggedIn, authMiddleware.isAdmin, problemsController.deleteProblem)
 router.put('/edit-problem/:slug', authMiddleware.isLoggedIn, authMiddleware.isAdmin, problemsController.editProblem)
-router.get('/get-all-problems', authMiddleware.isLoggedIn, problemsController.getAllProblems)
+router.get('/get-all-problems', problemsController.getAllProblems)
 
 module.exports = router

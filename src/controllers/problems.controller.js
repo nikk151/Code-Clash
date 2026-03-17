@@ -134,7 +134,17 @@ async function getProblem(req, res) {
 async function getAllProblems(req, res) {
     try {
 
-        const problems = await problemModel.find()
+        const page = parseInt(req.query.page) || 1
+        const limit = parseInt(req.query.limit) || 5
+
+        const skip = (page - 1) * limit
+
+        const problems = await problemModel.find().skip(skip).limit(limit)
+
+        const totalItems = await problemModel.countDocuments();
+
+        const totalPages = Math.ceil(totalItems / limit);
+
 
         return res.status(200).json({
             message: "Problems Fetched Successfully",
@@ -142,7 +152,13 @@ async function getAllProblems(req, res) {
                 title: p.title,
                 difficulty: p.difficulty,
                 slug: p.slug
-            }))
+            })),
+            pagination: {
+                currentPage: page,
+                itemsPerPage: limit,
+                totalItems: totalItems,
+                totalPages: totalPages
+            }
         })
 
     } catch (error) {

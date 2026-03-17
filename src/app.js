@@ -38,13 +38,25 @@ app.use('/api/match/submit-code', rateLimit({
 app.use(express.json())
 app.use(cookieParser());
 
+// Health check route to keep Render server awake
+app.get('/ping', (req, res) => {
+    res.status(200).send('Server is awake');
+});
+
+// A JSON-based health check for our frontend test
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok', 
+        message: 'Backend is communicating!',
+        timestamp: new Date()
+    });
+});
+
 app.use("/api/auth", authRoutes)
 app.use("/api/problems", problemRoutes)
 app.use("/api/match", matchRoutes)
 app.use("/api/profile", profileRoutes)
 app.use("/api/leaderboard", leaderboardRoutes)
-
-
 
 
 module.exports = app
