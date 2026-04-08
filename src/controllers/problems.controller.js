@@ -6,10 +6,10 @@ const xss = require('xss')
 async function createProblem(req, res) {
     try {
 
-        const { title, description, difficulty, starterCode, sampleTestCases, hiddenTestCases } = req.body
+        const { title, description, difficulty, functionName, starterCode, sampleTestCases, hiddenTestCases, constraints } = req.body
 
         // Ensure all critical fields are present before proceeding with creation
-        if (!title || !description || !sampleTestCases || !hiddenTestCases || !starterCode) {
+        if (!title || !description || !sampleTestCases || !hiddenTestCases || !starterCode || !constraints) {
             return res.status(400).json({
                 message: "All fields are required"
             })
@@ -48,15 +48,17 @@ async function createProblem(req, res) {
             })
         }
 
-        // Create the problem in the database, wrapping user inputs in xss() to prevent Cross-Site Scripting attacks
+        // Create the problem in the database
         const problem = await problemModel.create({
-            title: xss(title),
+            title: title, // Title doesn't need XSS for internal use + slug generation
             slug,
             description: xss(description),
             difficulty,
-            starterCode: xss(starterCode),
+            functionName: xss(functionName || ""),
+            starterCode: starterCode, // Code must NOT be run through an HTML sanitizer
             sampleTestCases,
-            hiddenTestCases
+            hiddenTestCases,
+            constraints
         })
 
         return res.status(201).json({
@@ -117,8 +119,10 @@ async function getProblem(req, res) {
                 title: problem.title,
                 description: problem.description,
                 difficulty: problem.difficulty,
+                functionName: problem.functionName,
                 sampleTestCases: problem.sampleTestCases,
-                starterCode: problem.starterCode
+                starterCode: problem.starterCode,
+                constraints: problem.constraints
             }
         })
 
@@ -149,6 +153,7 @@ async function getAllProblems(req, res) {
         return res.status(200).json({
             message: "Problems Fetched Successfully",
             problems: problems.map(p => ({
+                _id: p._id,
                 title: p.title,
                 difficulty: p.difficulty,
                 slug: p.slug
@@ -176,9 +181,10 @@ async function editProblem(req, res) {
 
         // Clone req.body so we can sanitize specific text fields before saving to DB to prevent XSS attacks
         const updates = { ...req.body }
-        if (updates.title) updates.title = xss(updates.title)
+        if (updates.title) updates.title = updates.title
         if (updates.description) updates.description = xss(updates.description)
-        if (updates.starterCode) updates.starterCode = xss(updates.starterCode)
+        if (updates.starterCode) updates.starterCode = updates.starterCode
+        if (updates.functionName) updates.functionName = xss(updates.functionName)
 
         const problem = await problemModel.findOneAndUpdate(
             { slug },

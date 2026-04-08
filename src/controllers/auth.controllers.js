@@ -61,7 +61,7 @@ async function registerController(req, res) {
         });
 
         // Store JWT in an HttpOnly cookie to protect against client-side script access (reducing XSS risks)
-        res.cookie("token", token, { httpOnly: true });
+        res.cookie("token", token, { httpOnly: true, sameSite: 'none', secure: true });
 
         return res.status(201).json({
             message: "User Registered Successfully",
@@ -69,7 +69,10 @@ async function registerController(req, res) {
                 id: user._id,
                 username: user.username,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                eloRating: user.eloRating,
+                wins: user.wins,
+                losses: user.losses
             }
         });
     } catch (error) {
@@ -117,7 +120,7 @@ async function loginUser(req, res) {
             expiresIn: "7d"
         });
 
-        res.cookie("token", token, { httpOnly: true });
+        res.cookie("token", token, { httpOnly: true, sameSite: 'none', secure: true });
 
         return res.status(200).json({
             message: "User Logged In Successfully",
@@ -125,6 +128,9 @@ async function loginUser(req, res) {
                 id: isUserExist._id,
                 username: isUserExist.username,
                 email: isUserExist.email,
+                eloRating: isUserExist.eloRating,
+                wins: isUserExist.wins,
+                losses: isUserExist.losses
             }
         });
     } catch (error) {
@@ -137,7 +143,7 @@ async function loginUser(req, res) {
 
 async function logoutUser(req, res) {
     try {
-        res.clearCookie("token");
+        res.clearCookie("token", { httpOnly: true, sameSite: 'none', secure: true });
         return res.status(200).json({
             message: "User Logged Out Successfully"
         });
@@ -207,10 +213,24 @@ async function changePasswordController(req, res) {
 }
 
 
+async function getCurrentUser(req, res) {
+    try {
+        const user = await userModel.findById(req.user._id).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.status(200).json({ user });
+    } catch (error) {
+        console.error("Get current user error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 module.exports = {
     registerController,
     loginUser,
     logoutUser,
     sendOTPController,
-    changePasswordController
+    changePasswordController,
+    getCurrentUser
 }

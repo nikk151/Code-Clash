@@ -32,10 +32,8 @@ module.exports = function (io) {
             if (!roomPlayers[roomCode]) roomPlayers[roomCode] = 0
             roomPlayers[roomCode]++
 
-            socket.to(roomCode).emit("opponent-joined", {
-                username,
-                message: `${username} has joined the match!`
-            })
+            // NOTE: We rely strictly on the REST API (match.controller.js) to emit "opponent-joined" 
+            // once the 2nd player is definitively saved to the database. This prevents ghost starts.
 
             console.log(`${username} joined room ${roomCode}`)
         })
@@ -50,6 +48,33 @@ module.exports = function (io) {
                 message: xss(message),
                 timestamp: new Date().toISOString()
             })
+        })
+
+
+        /**
+         * Player manually left the match
+         */
+        socket.on("leave-room", async ({ roomCode, username }) => {
+            socket.to(roomCode).emit("opponent-left", {
+                username,
+                message: `${username} has left the match!`
+            })
+
+            socket.leave(roomCode)
+            
+            if (roomPlayers[roomCode]) {
+                roomPlayers[roomCode]--
+                if (roomPlayers[roomCode] <= 0) {
+                    try {
+                        await matchModel.findOneAndDelete({ roomCode })
+                        console.log(`🗑️ Match ${roomCode} deleted (player left, room empty)`)
+                    } catch (err) {
+                        console.error("Match cleanup error:", err)
+                    }
+                    delete roomPlayers[roomCode]
+                }
+            }
+            console.log(`${username} left room ${roomCode}`)
         })
 
 

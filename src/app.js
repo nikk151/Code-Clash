@@ -17,7 +17,7 @@ const app = express()
 
 // CORS — allow frontend to connect
 app.use(cors({
-    origin: "http://localhost:5173",  // React dev server URL
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",  // React dev server URL
     credentials: true                 // allow cookies
 }))
 app.use(helmet());

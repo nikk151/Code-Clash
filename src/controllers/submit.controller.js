@@ -47,7 +47,7 @@ async function submitCode(req, res) {
 
         // Execute user's code via JDoodle against all hidden tests in a single API call to save credits
         const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
-            code, language, hiddenTestCases
+            code, language, hiddenTestCases, true, problem.functionName
         )
 
         if (error) {
@@ -159,7 +159,7 @@ async function runSampleTestCases(req, res) {
         }
 
         const { allPassed, results, passedCount, error } = await jdoodleService.runAllTestCases(
-            code, language, sampleTestCases
+            code, language, sampleTestCases, false, problem.functionName
         )
 
         if (error) {

@@ -10,10 +10,20 @@ const problemSchema = new mongoose.Schema({
         default: 'Easy'
     },
 
-    // The "Signature" tells the frontend how to call the function
     // e.g. functionName: "twoSum", args: ["nums", "target"]
-    starterCode: {
+    functionName: {
         type: String,
+        required: false
+    },
+
+    // starterCode can now be an object: { javascript: '...', python3: '...' }
+    starterCode: {
+        type: mongoose.Schema.Types.Mixed,
+        required: true
+    },
+
+    constraints: {
+        type: [String],
         required: true
     },
 
