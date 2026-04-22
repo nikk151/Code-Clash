@@ -1,96 +1,72 @@
-# ⚔️ Code Clash Backend
+# Code Clash API ⚔️
 
-A real-time, competitive 1v1 coding platform where users can challenge each other to solve algorithmic problems.
+The backend engine for Code Clash, a real-time competitive programming platform. Built with Node.js, Express, Socket.io, and MongoDB.
 
-## 🚀 Key Features
+## Features
 
-- **Real-time 1v1 Matches**: Powered by Socket.io for instant opponent matching and live updates.
-- **Code Execution Engine**: Integrated with **JDoodle API** to run code in Python, Java, C++, C, and JavaScript.
-- **ELO Rating System**: Automatic skill-based rankings updated after every match.
-- **Secure Authentication**: JWT-based auth with HTTP-only cookies and **Email OTP verification**.
-- **Live Chat**: Cleaned and sanitized real-time messaging between opponents.
-- **Admin Dashboard**: Secure routes for admins to manage (CRUD) coding problems.
-- **Security Hardened**: Protected against XSS, Clickjacking (Helmet.js), and Rate Limiting.
+- **Real-time Matchmaking**: Seamlessly pair up with rivals using Socket.io.
+- **Code Execution**: Integrated with JDoodle API to run code in 70+ languages.
+- **ELO Rating System**: Automated skill-based matchmaking and ranking.
+- **Security**: JWT-based authentication with HttpOnly cookies and rate limiting.
+- **Problem Library**: Robust problem management with constraints and test cases.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Server**: Node.js & Express.js
-- **Database**: MongoDB (Mongoose)
-- **Real-time**: Socket.io
-- **Mailing**: Nodemailer
-- **Authentication**: JWT & Bcrypt
+- **Runtime**: [Node.js](https://nodejs.org/)
+- **Framework**: [Express.js](https://expressjs.com/)
+- **Real-time**: [Socket.io](https://socket.io/)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose ODM)
+- **Security**: [Helmet](https://helmetjs.github.io/), [Express Rate Limit](https://www.npmjs.com/package/express-rate-limit)
+- **Authentication**: [JWT](https://jwt.io/), [Bcrypt](https://www.npmjs.com/package/bcrypt)
 
-## 📋 Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - Node.js installed
-- MongoDB (Local or Atlas)
+- A MongoDB Atlas Cluster or local MongoDB instance
 - JDoodle API credentials
-- Gmail App Password (for OTP emails)
 
-## ⚙️ Installation
+### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/nikk151/Code-Clash.git
-   cd Code-Clash
-   ```
-
+1. Clone the repository
 2. Install dependencies:
    ```bash
    npm install
    ```
-
-3. Setup environment variables:
-   Create a `.env` file in the root directory and add the variables listed in `.env.example`.
-
+3. Create a `.env` file based on `.env.example`:
+   ```env
+   PORT=8000
+   MONGO_URI=your_mongodb_uri
+   JWT_SECRET=your_jwt_secret
+   JDOODLE_CLIENT_ID=your_id
+   JDOODLE_CLIENT_SECRET=your_secret
+   EMAIL_USER=your_email
+   EMAIL_PASS=your_app_password
+   FRONTEND_URL=http://localhost:5173
+   ```
 4. Start the server:
    ```bash
-   # Development (with nodemon)
    npm run dev
-
-   # Production
-   npm start
    ```
 
-## 🔐 Environment Variables
+## API Endpoints
+
+- `POST /api/auth/register`: Create a new account.
+- `POST /api/auth/login`: Sign in and receive a session cookie.
+- `GET /api/problems`: List available coding challenges.
+- `POST /api/match/create`: Initialize a private or public match.
+- `GET /api/leaderboard`: Fetch the top-ranking warriors.
+
+## Environment Variables
 
 | Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: 3000) |
-| `MONGO_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret key for signing tokens |
-| `EMAIL_USER` | Gmail address for sending OTPs |
-| `EMAIL_PASS` | Gmail App Password |
-| `JDOODLE_CLIENT_ID` | JDoodle API Client ID |
-| `JDOODLE_CLIENT_SECRET` | JDoodle API Client Secret |
+| :--- | :--- |
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `JWT_SECRET` | Secret key for generating session tokens |
+| `FRONTEND_URL` | The URL of your React frontend (for CORS) |
+| `JDOODLE_*` | API credentials from jdoodle.com |
 
-## 🗺️ Project Architecture
+## License
 
-```mermaid
-graph TD
-    Client[React Frontend] <-->|Socket.io| Server[Node/Express Server]
-    Server <-->|Mongoose| DB[(MongoDB)]
-    Server -->|Nodemailer| Email[Gmail/OTP]
-    Server -->|HTTPS| JDoodle[JDoodle API]
-```
-
-## 🔑 API Endpoints (Quick Reference)
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/auth/send-otp` | Sends 6-digit OTP | No |
-| POST | `/api/auth/register` | Finalize registration | No |
-| POST | `/api/auth/login` | Login & set cookie | No |
-| POST | `/api/match/create-match` | Start a new lobby | Yes |
-| POST | `/api/match/submit-code/:code` | Submit solution | Yes |
-| GET | `/api/leaderboard` | Top 50 rankings | No |
-
-## 🛡️ Security Features
-
-- **Input Sanitization**: All user descriptions and chat messages are sanitized via the `xss` library.
-- **Rate Limiting**: Custom limits for general API and sensitive code execution endpoints.
-- **Helmet**: Sets secure HTTP headers to prevent common web vulnerabilities.
-- **CORS**: Configured to only allow requests from the trusted frontend origin.
-
----
-Built with ❤️ by [nikk151](https://github.com/nikk151)
+MIT
